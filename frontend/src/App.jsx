@@ -348,6 +348,7 @@ function Mark({ user }) {
   const [list, setList] = useState([]);
   const [locked, setLocked] = useState(false);
   const [q, setQ] = useState('');
+  const [sortBy, setSortBy] = useState('roll');
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -428,6 +429,24 @@ function Mark({ user }) {
     .map((s, i) => [s, i])
     .filter(([s]) => !q || (s.enrollment_no + ' ' + s.name + ' ' + s.subject_code).toLowerCase().includes(q.toLowerCase()));
 
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    const sA = a[0], sB = b[0];
+    if (sortBy === 'name') {
+      return (sA.name || '').localeCompare(sB.name || '');
+    }
+    if (sortBy === 'subject') {
+      const cmp = (sA.subject_code || '').localeCompare(sB.subject_code || '');
+      return cmp !== 0 ? cmp : (sA.enrollment_no || '').localeCompare(sB.enrollment_no || '', undefined, { numeric: true });
+    }
+    if (sortBy === 'unmarked') {
+      const rank = s => (!s.status ? 0 : s.status === 'Absent' ? 1 : 2);
+      const diff = rank(sA) - rank(sB);
+      return diff !== 0 ? diff : (sA.enrollment_no || '').localeCompare(sB.enrollment_no || '', undefined, { numeric: true });
+    }
+    // Default 'roll': Numerical/alphabetical Roll Number order
+    return (sA.enrollment_no || '').localeCompare(sB.enrollment_no || '', undefined, { numeric: true });
+  });
+
   return (
     <div className="pb-44 text-white">
       {/* Selector Header Card */}
@@ -489,7 +508,7 @@ function Mark({ user }) {
           </div>
         </div>
 
-        {/* Room Info & Search Bar */}
+        {/* Room Info, Search Bar & Sort Toggle */}
         {room && (
           <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3 items-center justify-between">
             <div className="relative w-full sm:w-72">
@@ -504,8 +523,26 @@ function Mark({ user }) {
                 className="w-full pl-9 pr-3 py-2 text-sm bg-slate-800/90 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-            <div className="text-xs text-slate-400 w-full sm:w-auto text-right font-medium">
-              Showing <span className="font-bold text-white">{filteredStudents.length}</span> of {totalCount} students
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              {/* Sort Toggle */}
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="hidden sm:inline">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  className="bg-slate-800/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="roll">🔢 Roll Number (Default)</option>
+                  <option value="name">🔤 Student Name (A-Z)</option>
+                  <option value="subject">📚 Subject Code</option>
+                  <option value="unmarked">⏳ Unmarked First</option>
+                </select>
+              </div>
+
+              <div className="text-xs text-slate-400 text-right font-medium">
+                Showing <span className="font-bold text-white">{sortedStudents.length}</span> of {totalCount} students
+              </div>
             </div>
           </div>
         )}
@@ -541,12 +578,12 @@ function Mark({ user }) {
       {/* Students List */}
       {room && (
         <div className="space-y-2">
-          {filteredStudents.length === 0 ? (
+          {sortedStudents.length === 0 ? (
             <div className="text-center py-12 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 text-slate-400 text-sm">
               No students found matching your criteria.
             </div>
           ) : (
-            filteredStudents.map(([s, i]) => {
+            sortedStudents.map(([s, i], displayIndex) => {
               const isPresent = s.status === 'Present';
               const isAbsent = s.status === 'Absent';
               return (
@@ -564,7 +601,7 @@ function Mark({ user }) {
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                       isPresent ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : isAbsent ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
                     }`}>
-                      {i + 1}
+                      {displayIndex + 1}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
