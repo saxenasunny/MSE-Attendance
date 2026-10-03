@@ -27,10 +27,19 @@ exports.parseSeating = buf => {
     const dm = String(a[1]?.[0] || '').match(/Date:\s*(\S+)\s*\|\s*Session:\s*(\w+)/i);
     if (room && dm) {                       // room-wise grid sheet: header row 4 holds "Subject (CODE)" per column
       const codes = (a[3] || []).map(h => (String(h).match(/\(([A-Za-z0-9]+)\)\s*$/) || [])[1]);
-      for (const row of a.slice(4)) row.forEach((v, i) => {
-        const e = String(v).trim();
-        if (/^\d{9,}$/.test(e) && codes[i]) seats.push({ room: room[1].trim(), date: toDate(dm[1]), session: cap(dm[2]), enrollment_no: e, subject_code: codes[i] });
-      });
+      const dataRows = a.slice(4);
+      // Column-wise order: first column students (top to bottom), then second column, then so on
+      for (let colIdx = 0; colIdx < codes.length; colIdx++) {
+        const code = codes[colIdx];
+        if (!code) continue;
+        for (let rowIdx = 0; rowIdx < dataRows.length; rowIdx++) {
+          const val = dataRows[rowIdx]?.[colIdx];
+          const e = String(val ?? '').trim();
+          if (/^\d{9,}$/.test(e)) {
+            seats.push({ room: room[1].trim(), date: toDate(dm[1]), session: cap(dm[2]), enrollment_no: e, subject_code: code });
+          }
+        }
+      }
     } else if (n !== 'Master Sheet') flat.push(...readFlat(wb.Sheets[n]).filter(o => o.room_no));
   }
   return { seats, flat };
