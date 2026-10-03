@@ -6,6 +6,8 @@ const { parseStudents, parseSeating } = require('./parse');
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
+const clean = s => (typeof s === 'string' ? s.trim().replace(/^['"]|['"]$/g, '') : s);
+
 function extractDbFromUrl(url) {
   if (!url) return null;
   try {
@@ -17,23 +19,51 @@ function extractDbFromUrl(url) {
   }
 }
 
-const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+const dbUrl = clean(process.env.DATABASE_URL || process.env.MYSQL_URL);
 const isSSL = process.env.DB_SSL === 'true' || process.env.DB_SSL === '1';
 const sslOption = isSSL ? { rejectUnauthorized: false } : undefined;
-let targetDb = extractDbFromUrl(dbUrl) || process.env.DB_NAME || 'test';
 
-const pool = dbUrl
-  ? mysql.createPool({ uri: dbUrl, database: targetDb, connectionLimit: 10, dateStrings: true, ...(sslOption ? { ssl: sslOption } : {}) })
-  : mysql.createPool({
-      host: process.env.DB_HOST || 'localhost',
-      port: +process.env.DB_PORT || 3306,
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: targetDb,
-      connectionLimit: 10,
-      dateStrings: true,
-      ssl: sslOption
-    });
+const hasIndividual = Boolean(process.env.DB_HOST && process.env.DB_USER);
+let targetDb = (hasIndividual ? clean(process.env.DB_NAME) : null) || extractDbFromUrl(dbUrl) || clean(process.env.DB_NAME) || 'test';
+
+let pool;
+if (hasIndividual) {
+  const host = clean(process.env.DB_HOST);
+  const port = +clean(process.env.DB_PORT) || 4000;
+  const user = clean(process.env.DB_USER);
+  console.log(`Using individual DB config: host=${host}, port=${port}, user=${user}, database=${targetDb}`);
+  pool = mysql.createPool({
+    host,
+    port,
+    user,
+    password: clean(process.env.DB_PASSWORD) || '',
+    database: targetDb,
+    connectionLimit: 10,
+    dateStrings: true,
+    ssl: sslOption
+  });
+} else if (dbUrl) {
+  console.log(`Using DATABASE_URL with database=${targetDb}`);
+  pool = mysql.createPool({
+    uri: dbUrl,
+    database: targetDb,
+    connectionLimit: 10,
+    dateStrings: true,
+    ...(sslOption ? { ssl: sslOption } : {})
+  });
+} else {
+  console.log(`Using local fallback database: localhost:3306/${targetDb}`);
+  pool = mysql.createPool({
+    host: 'localhost',
+    port: 3306,
+    user: 'root',
+    password: '',
+    database: targetDb,
+    connectionLimit: 10,
+    dateStrings: true,
+    ssl: sslOption
+  });
+}
 
 const app = express();
 const corsOrigins = process.env.CORS_ORIGIN
