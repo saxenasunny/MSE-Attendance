@@ -327,6 +327,11 @@ function Login({ onDone }) {
             </p>
           </div>
         </div>
+
+        {/* Footer Copyright */}
+        <footer className="mt-8 text-center text-xs text-slate-500 font-medium">
+          <p>© {new Date().getFullYear()} <span className="text-slate-300 font-semibold tracking-wide">Cryptic-Automations</span>. All rights reserved.</p>
+        </footer>
       </div>
     </div>
   );
@@ -1163,6 +1168,11 @@ export default function App() {
         {tab === 'report' && <Report />}
         {tab === 'admin' && <Admin onOpenPasswordModal={() => setPasswordModalOpen(true)} />}
       </main>
+
+      {/* Global Page Footer */}
+      <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-slate-500 font-medium border-t border-white/5 mt-4">
+        <p>© {new Date().getFullYear()} <span className="text-slate-300 font-semibold tracking-wide">Cryptic-Automations</span>. All rights reserved.</p>
+      </footer>
 
       {/* Change Password Modal */}
       {passwordModalOpen && (
