@@ -199,6 +199,16 @@ app.post('/api/admin/users', auth('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.post('/api/change-password', auth(), h(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+  const [[u]] = await pool.query('SELECT * FROM users WHERE id=?', [req.user.id]);
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  if (!(await bcrypt.compare(currentPassword || '', u.password_hash))) return res.status(400).json({ error: 'Current password is incorrect' });
+  await pool.query('UPDATE users SET password_hash=? WHERE id=?', [await bcrypt.hash(newPassword, 10), req.user.id]);
+  res.json({ ok: true, message: 'Password updated successfully' });
+}));
+
 (async () => {
   // Ensure we are inside a database
   try {

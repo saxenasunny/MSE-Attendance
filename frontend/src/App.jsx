@@ -84,6 +84,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
     </svg>
   ),
+  Key: () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+    </svg>
+  ),
   FileSpreadsheet: () => (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -95,6 +100,118 @@ const Icons = {
     </svg>
   )
 };
+
+// ---- Password Change Modal ----
+function ChangePasswordModal({ onClose }) {
+  const [curr, setCurr] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async e => {
+    e.preventDefault();
+    setMsg(null);
+    if (next.length < 6) {
+      return setMsg({ ok: false, t: 'New password must be at least 6 characters long.' });
+    }
+    if (next !== confirm) {
+      return setMsg({ ok: false, t: 'New password and confirmation do not match.' });
+    }
+    setBusy(true);
+    try {
+      await api('/api/change-password', {
+        method: 'POST',
+        body: { currentPassword: curr, newPassword: next }
+      });
+      setMsg({ ok: true, t: 'Password changed successfully! You can now log in with your new password.' });
+      setCurr('');
+      setNext('');
+      setConfirm('');
+      setTimeout(() => onClose(), 2000);
+    } catch (err) {
+      setMsg({ ok: false, t: err.message });
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div className="w-full max-w-md bg-slate-900 border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4 text-white">
+        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+              <Icons.Key />
+            </div>
+            <h3 className="font-bold text-base">Change Password</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Current Password</label>
+            <input
+              required
+              type="password"
+              placeholder="Enter current password"
+              value={curr}
+              onChange={e => setCurr(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">New Password</label>
+            <input
+              required
+              type="password"
+              placeholder="At least 6 characters"
+              value={next}
+              onChange={e => setNext(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Confirm New Password</label>
+            <input
+              required
+              type="password"
+              placeholder="Re-enter new password"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          {msg && (
+            <div className={`p-3 rounded-xl text-xs font-medium border ${
+              msg.ok ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+            }`}>
+              {msg.t}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-white/10"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex-[2] py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 disabled:opacity-50"
+            >
+              {busy ? 'Updating…' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ---- Login Component ----
 function Login({ onDone }) {
@@ -122,7 +239,7 @@ function Login({ onDone }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col justify-center items-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 flex flex-col justify-center items-center px-4 py-12 text-white">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
@@ -136,10 +253,10 @@ function Login({ onDone }) {
         </div>
 
         {/* Card */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+        <div className="bg-slate-900/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
           <form onSubmit={go} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Username</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Username</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
                   <Icons.User />
@@ -151,13 +268,13 @@ function Login({ onDone }) {
                   value={u}
                   onChange={e => setU(e.target.value)}
                   autoCapitalize="none"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800/80 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Password</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
                   <Icons.Lock />
@@ -168,12 +285,12 @@ function Login({ onDone }) {
                   placeholder="Enter password"
                   value={p}
                   onChange={e => setP(e.target.value)}
-                  className="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full pl-11 pr-11 py-3 bg-slate-800/80 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white focus:outline-none"
                 >
                   {showPass ? <Icons.EyeOff /> : <Icons.Eye />}
                 </button>
@@ -181,8 +298,8 @@ function Login({ onDone }) {
             </div>
 
             {err && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
-                <span className="text-rose-500 font-bold">•</span>
+              <div className="p-3 bg-rose-950/50 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-start gap-2">
+                <span className="text-rose-400 font-bold">•</span>
                 <span>{err}</span>
               </div>
             )}
@@ -190,7 +307,7 @@ function Login({ onDone }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 active:scale-[0.98] text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -203,10 +320,10 @@ function Login({ onDone }) {
             </button>
           </form>
 
-          {/* Quick Help for First Login */}
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-500">
-              <strong className="text-slate-700">First time logging in?</strong> Log in as <code className="px-1.5 py-0.5 bg-slate-100 rounded text-indigo-600 font-mono font-semibold">admin</code> using your configured Render password.
+          {/* Quick Help */}
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-xs text-slate-400">
+              <strong className="text-slate-300">First time logging in?</strong> Log in as <code className="px-1.5 py-0.5 bg-slate-800 rounded text-indigo-400 font-mono font-semibold">admin</code> using your Render password.
             </p>
           </div>
         </div>
@@ -307,19 +424,19 @@ function Mark({ user }) {
     .filter(([s]) => !q || (s.enrollment_no + ' ' + s.name + ' ' + s.subject_code).toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="pb-44">
+    <div className="pb-44 text-white">
       {/* Selector Header Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 mb-4">
+      <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 p-4 mb-4">
         <div className="grid gap-3 sm:grid-cols-3">
           {/* Date Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <Icons.Calendar /> Exam Date
             </label>
             <select
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Select Date…</option>
               {dates.map(d => (
@@ -330,14 +447,14 @@ function Mark({ user }) {
 
           {/* Session Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <Icons.Clock /> Session
             </label>
             <select
               value={session}
               onChange={e => setSession(e.target.value)}
               disabled={!date}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40"
             >
               <option value="">Select Session…</option>
               {sessions.map(s => (
@@ -348,14 +465,14 @@ function Mark({ user }) {
 
           {/* Room Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <Icons.Building /> Room No.
             </label>
             <select
               value={room}
               onChange={e => setRoom(e.target.value)}
               disabled={!session}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40"
             >
               <option value="">Select Room…</option>
               {rooms.map(r => (
@@ -369,7 +486,7 @@ function Mark({ user }) {
 
         {/* Room Info & Search Bar */}
         {room && (
-          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3 items-center justify-between">
             <div className="relative w-full sm:w-72">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
                 <Icons.Search />
@@ -379,11 +496,11 @@ function Mark({ user }) {
                 placeholder="Search roll no, name, subject…"
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-800/90 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-            <div className="text-xs text-slate-500 w-full sm:w-auto text-right font-medium">
-              Showing <span className="font-bold text-slate-800">{filteredStudents.length}</span> of {totalCount} students
+            <div className="text-xs text-slate-400 w-full sm:w-auto text-right font-medium">
+              Showing <span className="font-bold text-white">{filteredStudents.length}</span> of {totalCount} students
             </div>
           </div>
         )}
@@ -391,7 +508,7 @@ function Mark({ user }) {
 
       {/* Lock Notice */}
       {locked && (
-        <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-3.5 text-xs text-amber-800 flex items-center gap-2.5">
+        <div className="mb-4 rounded-xl bg-amber-950/40 border border-amber-500/30 p-3.5 text-xs text-amber-300 flex items-center gap-2.5">
           <span className="text-base">🔒</span>
           <span>
             {readOnly ? (
@@ -405,7 +522,9 @@ function Mark({ user }) {
 
       {/* Notification Toast */}
       {msg && (
-        <div className={`mb-4 p-3.5 rounded-xl border text-sm flex items-center justify-between ${msg.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+        <div className={`mb-4 p-3.5 rounded-xl border text-sm flex items-center justify-between ${
+          msg.ok ? 'bg-emerald-950/50 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/50 border-rose-500/30 text-rose-300'
+        }`}>
           <div className="flex items-center gap-2">
             <span>{msg.ok ? '✓' : '⚠'}</span>
             <span className="font-medium">{msg.t}</span>
@@ -418,7 +537,7 @@ function Mark({ user }) {
       {room && (
         <div className="space-y-2">
           {filteredStudents.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80 text-slate-400 text-sm">
+            <div className="text-center py-12 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 text-slate-400 text-sm">
               No students found matching your criteria.
             </div>
           ) : (
@@ -428,33 +547,33 @@ function Mark({ user }) {
               return (
                 <div
                   key={s.enrollment_no + '|' + s.subject_code}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white border transition-all ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl backdrop-blur-md border transition-all ${
                     isPresent
-                      ? 'border-emerald-200 bg-emerald-50/20 shadow-sm'
+                      ? 'border-emerald-500/40 bg-emerald-950/20 shadow-md shadow-emerald-950/40'
                       : isAbsent
-                      ? 'border-rose-200 bg-rose-50/20 shadow-sm'
-                      : 'border-slate-200 hover:border-slate-300'
+                      ? 'border-rose-500/40 bg-rose-950/20 shadow-md shadow-rose-950/40'
+                      : 'border-white/10 bg-slate-900/50 hover:border-white/20'
                   }`}
                 >
                   <div className="min-w-0 flex items-start gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                      isPresent ? 'bg-emerald-100 text-emerald-800' : isAbsent ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
+                      isPresent ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : isAbsent ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
                     }`}>
                       {i + 1}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-base font-bold text-slate-900">{s.enrollment_no}</span>
+                        <span className="font-mono text-base font-bold text-white tracking-wide">{s.enrollment_no}</span>
                         {s.section && (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[11px] font-semibold">
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[11px] font-semibold border border-white/5">
                             Sec: {s.section}
                           </span>
                         )}
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-[11px] font-semibold">
+                        <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md text-[11px] font-semibold border border-indigo-500/30">
                           {s.subject_code}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-600 font-medium truncate mt-0.5">{s.name}</div>
+                      <div className="text-xs text-slate-300 font-medium truncate mt-0.5">{s.name}</div>
                       {s.subject_name && (
                         <div className="text-[11px] text-slate-400 truncate">{s.subject_name}</div>
                       )}
@@ -462,15 +581,15 @@ function Mark({ user }) {
                   </div>
 
                   {/* Present / Absent Action Buttons */}
-                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     <button
                       type="button"
                       disabled={readOnly}
                       onClick={() => setStatus(i, isPresent ? '' : 'Present')}
                       className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 ${
                         isPresent
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-600/20'
-                          : 'bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700'
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/40 ring-2 ring-emerald-500/40'
+                          : 'bg-slate-800/90 hover:bg-emerald-950/40 text-slate-400 hover:text-emerald-300 border border-white/10'
                       }`}
                     >
                       <Icons.Check />
@@ -482,8 +601,8 @@ function Mark({ user }) {
                       onClick={() => setStatus(i, isAbsent ? '' : 'Absent')}
                       className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 ${
                         isAbsent
-                          ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 ring-2 ring-rose-600/20'
-                          : 'bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700'
+                          ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-2 ring-rose-500/40'
+                          : 'bg-slate-800/90 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-white/10'
                       }`}
                     >
                       <span>✕</span>
@@ -499,28 +618,28 @@ function Mark({ user }) {
 
       {/* Floating Bottom Action Bar */}
       {room && (
-        <div className="fixed inset-x-0 bottom-0 z-20 p-3 sm:p-4 bg-gradient-to-t from-slate-900/10 via-slate-900/5 to-transparent pointer-events-none">
-          <div className="max-w-3xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/80 p-3 sm:p-4 pointer-events-auto space-y-3">
+        <div className="fixed inset-x-0 bottom-0 z-20 p-3 sm:p-4 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none">
+          <div className="max-w-4xl mx-auto bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/15 p-3 sm:p-4 pointer-events-auto space-y-3">
             {/* Live Progress Bar & Stats */}
             <div>
               <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
                 <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
                     <strong>{presentCount}</strong> Present
                   </span>
-                  <span className="flex items-center gap-1 text-rose-700">
-                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="flex items-center gap-1.5 text-rose-400">
+                    <span className="w-2 h-2 rounded-full bg-rose-400 shadow-sm shadow-rose-400" />
                     <strong>{absentCount}</strong> Absent
                   </span>
-                  <span className="flex items-center gap-1 text-amber-700">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400" />
                     <strong>{unmarkedCount}</strong> Unmarked
                   </span>
                 </div>
                 <span className="text-slate-400 font-mono">{progressPercent}% marked</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
+              <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex border border-white/5">
                 <div style={{ width: `${(presentCount / (totalCount || 1)) * 100}%` }} className="bg-emerald-500 transition-all duration-300" />
                 <div style={{ width: `${(absentCount / (totalCount || 1)) * 100}%` }} className="bg-rose-500 transition-all duration-300" />
               </div>
@@ -532,7 +651,7 @@ function Mark({ user }) {
                 type="button"
                 disabled={readOnly}
                 onClick={() => setAllStatus('Present')}
-                className="flex-1 py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200/60 transition-all disabled:opacity-40"
+                className="flex-1 py-2.5 px-3 bg-emerald-950/40 hover:bg-emerald-900/50 active:scale-95 text-emerald-300 text-xs font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-40"
               >
                 Mark All Present
               </button>
@@ -540,7 +659,7 @@ function Mark({ user }) {
                 type="button"
                 disabled={readOnly}
                 onClick={() => setAllStatus('Absent')}
-                className="flex-1 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-800 text-xs font-semibold rounded-xl border border-rose-200/60 transition-all disabled:opacity-40"
+                className="flex-1 py-2.5 px-3 bg-rose-950/40 hover:bg-rose-900/50 active:scale-95 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/30 transition-all disabled:opacity-40"
               >
                 Mark All Absent
               </button>
@@ -548,7 +667,7 @@ function Mark({ user }) {
                 type="button"
                 disabled={readOnly || busy}
                 onClick={save}
-                className="flex-[2] py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               >
                 {busy ? (
                   <>
@@ -612,15 +731,15 @@ function Report() {
   const tot = k => (d ? d.summary.reduce((a, x) => a + x[k], 0) : 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-white">
       {/* Top Filter and Download Bar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="w-full sm:w-64">
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Select Exam Date</label>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Select Exam Date</label>
           <select
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {dates.map(x => (
               <option key={x} value={x}>{fmt(x)}</option>
@@ -630,14 +749,14 @@ function Report() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => dl('xlsx')}
-            className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
           >
             <Icons.FileSpreadsheet />
             <span>Export Excel</span>
           </button>
           <button
             onClick={() => dl('csv')}
-            className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md shadow-slate-700/20 transition-all flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl text-xs font-bold border border-white/10 transition-all flex items-center justify-center gap-2"
           >
             <span>Export CSV</span>
           </button>
@@ -649,47 +768,48 @@ function Report() {
           {/* Stat Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Total Seated', key: 'total', color: 'text-slate-900', bg: 'bg-indigo-50/50' },
-              { label: 'Present', key: 'present', color: 'text-emerald-600', bg: 'bg-emerald-50/50' },
-              { label: 'Absent', key: 'absent', color: 'text-rose-600', bg: 'bg-rose-50/50' },
-              { label: 'Unmarked', key: 'notMarked', color: 'text-amber-600', bg: 'bg-amber-50/50' }
+              { label: 'Total Seated', key: 'total', color: 'text-white', bg: 'bg-slate-900/60 border-indigo-500/30' },
+              { label: 'Present', key: 'present', color: 'text-emerald-400', bg: 'bg-emerald-950/30 border-emerald-500/30' },
+              { label: 'Absent', key: 'absent', color: 'text-rose-400', bg: 'bg-rose-950/30 border-rose-500/30' },
+              { label: 'Unmarked', key: 'notMarked', color: 'text-amber-400', bg: 'bg-amber-950/30 border-amber-500/30' }
             ].map(item => (
-              <div key={item.key} className={`rounded-2xl bg-white border border-slate-200/80 p-4 shadow-sm ${item.bg}`}>
+              <div key={item.key} className={`rounded-2xl border backdrop-blur-xl p-4 shadow-xl ${item.bg}`}>
                 <div className={`text-2xl sm:text-3xl font-extrabold ${item.color}`}>{tot(item.key)}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">{item.label}</div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{item.label}</div>
               </div>
             ))}
           </div>
 
           {/* Rooms Grid */}
           <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Room Wise Status</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Room Wise Status</h3>
             {d.summary.map(x => {
               const key = x.session + x.room;
               const absentees = d.rows.filter(r => r.Session === x.session && r['Room No'] === x.room);
-              const percent = x.total ? Math.round(((x.present + x.absent) / x.total) * 100) : 0;
               const isOpen = open === key;
 
               return (
-                <div key={key} className="rounded-2xl bg-white border border-slate-200/80 shadow-sm overflow-hidden transition-all">
+                <div key={key} className="rounded-2xl bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-xl overflow-hidden transition-all">
                   <div
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50/80 transition-colors"
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => setOpen(isOpen ? null : key)}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-slate-900">Room {x.room}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-semibold">{x.session}</span>
+                        <span className="font-bold text-base text-white">Room {x.room}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
+                          {x.session}
+                        </span>
                         {x.locked && (
-                          <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[11px] font-semibold flex items-center gap-1 border border-amber-500/30">
                             🔒 Locked
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
-                        <span className="text-emerald-700 font-semibold">{x.present}P</span>
-                        <span className="text-rose-700 font-semibold">{x.absent}A</span>
-                        <span className="text-amber-700 font-semibold">{x.notMarked} Unmarked</span>
+                      <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                        <span className="text-emerald-400 font-semibold">{x.present}P</span>
+                        <span className="text-rose-400 font-semibold">{x.absent}A</span>
+                        <span className="text-amber-400 font-semibold">{x.notMarked} Unmarked</span>
                         <span>/ Total {x.total}</span>
                       </div>
                     </div>
@@ -703,8 +823,8 @@ function Report() {
                         }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                           x.locked
-                            ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/50'
+                            : 'bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700'
                         }`}
                       >
                         {x.locked ? 'Unlock Room' : 'Lock Room'}
@@ -717,20 +837,20 @@ function Report() {
 
                   {/* Absent & Unmarked Student Accordion */}
                   {isOpen && (
-                    <div className="border-t border-slate-100 bg-slate-50/50 p-4">
-                      <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Absent & Unmarked Students ({absentees.length})</div>
+                    <div className="border-t border-white/10 bg-slate-950/40 p-4">
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Absent & Unmarked Students ({absentees.length})</div>
                       {absentees.length === 0 ? (
-                        <p className="text-xs text-emerald-700 font-medium">All seated students in this room are marked Present! 🎉</p>
+                        <p className="text-xs text-emerald-400 font-medium">All seated students in this room are marked Present! 🎉</p>
                       ) : (
                         <div className="grid gap-2 sm:grid-cols-2">
                           {absentees.map(r => (
-                            <div key={r['Enrollment No'] + r['Subject Code']} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between">
+                            <div key={r['Enrollment No'] + r['Subject Code']} className="p-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs flex items-center justify-between">
                               <div>
-                                <span className="font-mono font-bold text-slate-800">{r['Enrollment No']}</span>
-                                <div className="text-[11px] text-slate-500 truncate">{r.Name} · {r['Subject Code']}</div>
+                                <span className="font-mono font-bold text-white">{r['Enrollment No']}</span>
+                                <div className="text-[11px] text-slate-400 truncate">{r.Name} · {r['Subject Code']}</div>
                               </div>
                               <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                r['Attendance Status'] === 'Absent' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                                r['Attendance Status'] === 'Absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                               }`}>
                                 {r['Attendance Status']}
                               </span>
@@ -750,7 +870,7 @@ function Report() {
   );
 }
 
-// ---- Upload Component ----
+// ---- Upload Card ----
 function UploadCard({ label, path, hint, step }) {
   const [r, setR] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -771,22 +891,22 @@ function UploadCard({ label, path, hint, step }) {
   };
 
   return (
-    <div className="rounded-2xl bg-white p-5 border border-slate-200/80 shadow-sm space-y-3">
+    <div className="rounded-2xl bg-slate-900/60 backdrop-blur-xl p-5 border border-white/10 shadow-xl space-y-3 text-white">
       <div className="flex items-center gap-2">
-        <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+        <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold flex items-center justify-center">
           {step}
         </span>
-        <h3 className="font-bold text-slate-900 text-base">{label}</h3>
+        <h3 className="font-bold text-white text-base">{label}</h3>
       </div>
-      <p className="text-xs text-slate-500 leading-relaxed">{hint}</p>
+      <p className="text-xs text-slate-400 leading-relaxed">{hint}</p>
 
       <label className="block">
-        <div className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-50/50 hover:bg-indigo-50/20">
-          <div className="flex justify-center text-indigo-600 mb-2">
+        <div className="w-full border-2 border-dashed border-indigo-500/30 hover:border-indigo-400 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-950/40 hover:bg-indigo-950/30">
+          <div className="flex justify-center text-indigo-400 mb-2">
             <Icons.Upload />
           </div>
-          <span className="text-xs font-semibold text-slate-700 block">Click to choose Excel or CSV file</span>
-          <span className="text-[11px] text-slate-400 block mt-0.5">Supports .xlsx, .xls, .csv</span>
+          <span className="text-xs font-semibold text-slate-200 block">Click to choose Excel or CSV file</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Supports .xlsx, .xls, .csv</span>
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
@@ -798,15 +918,15 @@ function UploadCard({ label, path, hint, step }) {
       </label>
 
       {busy && (
-        <div className="flex items-center gap-2 text-xs text-indigo-600 font-semibold pt-1">
-          <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-xs text-indigo-400 font-semibold pt-1">
+          <div className="w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
           <span>Importing data into database…</span>
         </div>
       )}
 
       {r && (
         <div className={`mt-2 p-3 rounded-xl text-xs font-mono overflow-auto max-h-48 border ${
-          r.error ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          r.error ? 'bg-rose-950/50 border-rose-500/30 text-rose-300' : 'bg-emerald-950/50 border-emerald-500/30 text-emerald-300'
         }`}>
           <pre>{JSON.stringify(r, null, 2)}</pre>
         </div>
@@ -816,7 +936,7 @@ function UploadCard({ label, path, hint, step }) {
 }
 
 // ---- Admin Tab ----
-function Admin() {
+function Admin({ onOpenPasswordModal }) {
   const [f, setF] = useState({ username: '', name: '', password: '', role: 'invigilator' });
   const [m, setM] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -836,7 +956,26 @@ function Admin() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-white">
+      {/* Quick Security Action Banner */}
+      <div className="rounded-2xl bg-gradient-to-r from-indigo-950/80 to-slate-900/80 border border-indigo-500/30 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shrink-0">
+            <Icons.Key />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-white">Administrator Security</h4>
+            <p className="text-xs text-slate-400">Want to update your current login password?</p>
+          </div>
+        </div>
+        <button
+          onClick={onOpenPasswordModal}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30"
+        >
+          Change Password
+        </button>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <UploadCard
           step="1"
@@ -853,16 +992,16 @@ function Admin() {
       </div>
 
       {/* Add User Card */}
-      <div className="rounded-2xl bg-white p-5 border border-slate-200/80 shadow-sm">
-        <h3 className="font-bold text-slate-900 text-base mb-1">Create System User</h3>
-        <p className="text-xs text-slate-500 mb-4">Add invigilators or additional admins who can log into the portal.</p>
+      <div className="rounded-2xl bg-slate-900/60 backdrop-blur-xl p-5 border border-white/10 shadow-xl">
+        <h3 className="font-bold text-white text-base mb-1">Create System User</h3>
+        <p className="text-xs text-slate-400 mb-4">Add invigilators or additional admins who can log into the portal.</p>
 
         <form onSubmit={add} className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Username</label>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Username</label>
             <input
               required
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="e.g. invigilator1"
               value={f.username}
               onChange={e => setF({ ...f, username: e.target.value })}
@@ -870,10 +1009,10 @@ function Admin() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Full Name</label>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
             <input
               required
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="e.g. Prof. Sharma"
               value={f.name}
               onChange={e => setF({ ...f, name: e.target.value })}
@@ -881,11 +1020,11 @@ function Admin() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Password</label>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Password</label>
             <input
               required
               type="password"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Minimum 6 characters"
               value={f.password}
               onChange={e => setF({ ...f, password: e.target.value })}
@@ -893,9 +1032,9 @@ function Admin() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Role</label>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Role</label>
             <select
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={f.role}
               onChange={e => setF({ ...f, role: e.target.value })}
             >
@@ -908,7 +1047,7 @@ function Admin() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-md shadow-indigo-600/20 transition-all disabled:opacity-40"
+              className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40"
             >
               {busy ? 'Creating User…' : 'Create User Account'}
             </button>
@@ -916,7 +1055,9 @@ function Admin() {
         </form>
 
         {m && (
-          <div className={`mt-3 p-3 rounded-xl text-xs font-medium border ${m.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+          <div className={`mt-3 p-3 rounded-xl text-xs font-medium border ${
+            m.ok ? 'bg-emerald-950/50 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/50 border-rose-500/30 text-rose-300'
+          }`}>
             {m.t}
           </div>
         )}
@@ -929,6 +1070,7 @@ function Admin() {
 export default function App() {
   const [user, setUser] = useState(() => (token ? JSON.parse(localStorage.getItem('user') || 'null') : null));
   const [tab, setTab] = useState('mark');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   if (!user) return <Login onDone={setUser} />;
 
@@ -948,32 +1090,47 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+      <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shadow-lg" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/30">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 text-white flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-500/20">
               MSE
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-900 leading-none">Exam Attendance</div>
-              <div className="text-[11px] text-slate-500 font-medium">Invigilator Portal</div>
+              <div className="font-bold text-sm text-white leading-none">Exam Attendance</div>
+              <div className="text-[11px] text-slate-400 font-medium mt-0.5">Examination Management Portal</div>
             </div>
           </div>
 
-          {/* User Profile & Logout */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-bold text-slate-900 leading-tight">{user.name}</span>
-              <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded ${user.role === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+          {/* User Profile & Actions */}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex flex-col items-end mr-1">
+              <span className="text-xs font-bold text-white leading-tight">{user.name}</span>
+              <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded border ${
+                user.role === 'admin'
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              }`}>
                 {user.role}
               </span>
             </div>
+
+            {/* Change Password Button */}
+            <button
+              onClick={() => setPasswordModalOpen(true)}
+              title="Change Password"
+              className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all border border-transparent hover:border-white/10"
+            >
+              <Icons.Key />
+            </button>
+
+            {/* Logout Button */}
             <button
               onClick={handleLogout}
               title="Sign Out"
-              className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-xl transition-all border border-transparent hover:border-rose-500/20"
             >
               <Icons.Logout />
             </button>
@@ -982,15 +1139,15 @@ export default function App() {
 
         {/* Tab Navigation */}
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-2 border-t border-slate-100 pt-1 pb-1.5 overflow-x-auto">
+          <div className="flex gap-2 border-t border-white/5 pt-1.5 pb-2 overflow-x-auto">
             {tabs.map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
+                className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
                   tab === t.id
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {t.label}
@@ -1004,8 +1161,13 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
         {tab === 'mark' && <Mark user={user} />}
         {tab === 'report' && <Report />}
-        {tab === 'admin' && <Admin />}
+        {tab === 'admin' && <Admin onOpenPasswordModal={() => setPasswordModalOpen(true)} />}
       </main>
+
+      {/* Change Password Modal */}
+      {passwordModalOpen && (
+        <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />
+      )}
     </div>
   );
 }
