@@ -431,6 +431,14 @@ function Mark({ user }) {
 
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     const sA = a[0], sB = b[0];
+    if (sortBy === 'seating') {
+      const ordA = sA.seat_order || 0;
+      const ordB = sB.seat_order || 0;
+      if (ordA && ordB && ordA !== ordB) {
+        return ordA - ordB;
+      }
+      return a[1] - b[1];
+    }
     if (sortBy === 'name') {
       return (sA.name || '').localeCompare(sB.name || '');
     }
@@ -534,6 +542,7 @@ function Mark({ user }) {
                   className="bg-slate-800/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="roll">🔢 Roll Number (Default)</option>
+                  <option value="seating">🪑 Seating Plan Order (Rows/Benches)</option>
                   <option value="name">🔤 Student Name (A-Z)</option>
                   <option value="subject">📚 Subject Code</option>
                   <option value="unmarked">⏳ Unmarked First</option>
@@ -614,6 +623,11 @@ function Mark({ user }) {
                         <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md text-[11px] font-semibold border border-indigo-500/30">
                           {s.subject_code}
                         </span>
+                        {sortBy === 'seating' && s.seat_order > 0 && (
+                          <span className="px-2 py-0.5 bg-violet-500/20 text-violet-300 rounded-md text-[11px] font-semibold border border-violet-500/30">
+                            Seat #{s.seat_order}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-300 font-medium truncate mt-0.5">{s.name}</div>
                       {s.subject_name && (

@@ -110,7 +110,7 @@ app.get('/api/rooms', auth(), h(async (q, r) => {
 }));
 app.get('/api/roster', auth(), h(async (q, r) => {
   const { date, session, room } = q.query;
-  const [students] = await pool.query(`SELECT s.enrollment_no,s.name,s.program,s.section,s.subject_code,s.subject_name,a.status FROM exam_seating s ${JA}
+  const [students] = await pool.query(`SELECT s.enrollment_no,s.name,s.program,s.section,s.subject_code,s.subject_name,COALESCE(s.seat_order, 0) seat_order,a.status FROM exam_seating s ${JA}
     WHERE s.exam_date=? AND s.session=? AND s.room_no=? ORDER BY s.enrollment_no`, [date, session, room]);
   const [lk] = await pool.query('SELECT 1 FROM room_locks WHERE exam_date=? AND session=? AND room_no=?', [date, session, room]);
   r.json({ students, locked: lk.length > 0 });
@@ -180,8 +180,14 @@ app.post('/api/admin/import/seating', auth('admin'), upload.single('file'), h(as
   try {
     await conn.beginTransaction();    // re-importing a date+session replaces its seating; saved attendance is kept
     for (const p of pairs) await conn.query('DELETE FROM exam_seating WHERE exam_date=? AND session=?', p.split('|'));
-    await bulk(conn, 'INSERT INTO exam_seating (enrollment_no,name,program,section,subject_code,subject_name,exam_date,session,room_no) VALUES ? ON DUPLICATE KEY UPDATE room_no=VALUES(room_no)',
-      rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.subject_code, r.subject_name, r.exam_date, r.session, r.room_no]));
+    const roomCounters = {};
+    for (const r of rows) {
+      const k = `${r.exam_date}|${r.session}|${r.room_no}`;
+      roomCounters[k] = (roomCounters[k] || 0) + 1;
+      r.seat_order = roomCounters[k];
+    }
+    await bulk(conn, 'INSERT INTO exam_seating (enrollment_no,name,program,section,subject_code,subject_name,exam_date,session,room_no,seat_order) VALUES ? ON DUPLICATE KEY UPDATE room_no=VALUES(room_no),seat_order=VALUES(seat_order)',
+      rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.subject_code, r.subject_name, r.exam_date, r.session, r.room_no, r.seat_order || 0]));
     await conn.commit();
   } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
   res.json({ seated: rows.length, sessions: pairs, unmatched: unmatched.length, unmatchedSample: unmatched.slice(0, 20) });
@@ -227,6 +233,7 @@ app.post('/api/change-password', auth(), h(async (req, res) => {
   }
 
   for (const st of fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8').split(';').map(s => s.trim()).filter(Boolean)) await pool.query(st);
+  try { await pool.query('ALTER TABLE exam_seating ADD COLUMN seat_order INT DEFAULT 0'); } catch {}
   const [[c]] = await pool.query('SELECT COUNT(*) n FROM users');
   if (!c.n) {
     await pool.query('INSERT INTO users (username,password_hash,name,role) VALUES (?,?,?,?)', [process.env.ADMIN_USERNAME || 'admin', await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10), 'Administrator', 'admin']);
