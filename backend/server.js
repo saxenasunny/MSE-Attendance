@@ -6,18 +6,30 @@ const { parseStudents, parseSeating } = require('./parse');
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
+function extractDbFromUrl(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url.replace(/^mysql:\/\//i, 'http://'));
+    const p = u.pathname.replace(/^\/+/, '').split('?')[0].trim();
+    return p || null;
+  } catch {
+    return null;
+  }
+}
+
 const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
 const isSSL = process.env.DB_SSL === 'true' || process.env.DB_SSL === '1';
 const sslOption = isSSL ? { rejectUnauthorized: false } : undefined;
+let targetDb = extractDbFromUrl(dbUrl) || process.env.DB_NAME || 'test';
 
 const pool = dbUrl
-  ? mysql.createPool({ uri: dbUrl, connectionLimit: 10, dateStrings: true, ...(sslOption ? { ssl: sslOption } : {}) })
+  ? mysql.createPool({ uri: dbUrl, database: targetDb, connectionLimit: 10, dateStrings: true, ...(sslOption ? { ssl: sslOption } : {}) })
   : mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
       port: +process.env.DB_PORT || 3306,
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'exam_attendance',
+      database: targetDb,
       connectionLimit: 10,
       dateStrings: true,
       ssl: sslOption
@@ -152,6 +164,22 @@ app.post('/api/admin/users', auth('admin'), h(async (req, res) => {
 }));
 
 (async () => {
+  // Ensure we are inside a database
+  try {
+    await pool.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\``);
+  } catch {}
+  try {
+    await pool.query(`USE \`${targetDb}\``);
+  } catch (err) {
+    if (targetDb !== 'test') {
+      console.warn(`Could not switch to '${targetDb}', falling back to 'test'...`);
+      await pool.query('USE `test`');
+      targetDb = 'test';
+    } else {
+      throw err;
+    }
+  }
+
   for (const st of fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8').split(';').map(s => s.trim()).filter(Boolean)) await pool.query(st);
   const [[c]] = await pool.query('SELECT COUNT(*) n FROM users');
   if (!c.n) {
