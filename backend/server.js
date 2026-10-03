@@ -31,19 +31,25 @@ if (hasIndividual) {
   const host = clean(process.env.DB_HOST);
   const port = +clean(process.env.DB_PORT) || 4000;
   const user = clean(process.env.DB_USER);
-  console.log(`Using individual DB config: host=${host}, port=${port}, user=${user}, database=${targetDb}`);
+  const pass = clean(process.env.DB_PASSWORD) || '';
+  console.log(`Using individual DB config: host=${host}, port=${port}, user=${user}, database=${targetDb}, passwordLength=${pass.length}`);
   pool = mysql.createPool({
     host,
     port,
     user,
-    password: clean(process.env.DB_PASSWORD) || '',
+    password: pass,
     database: targetDb,
     connectionLimit: 10,
     dateStrings: true,
     ssl: sslOption
   });
 } else if (dbUrl) {
-  console.log(`Using DATABASE_URL with database=${targetDb}`);
+  let maskedUrl = dbUrl.replace(/:([^@]+)@/, ':***@');
+  try {
+    const parsed = new URL(dbUrl.replace(/^mysql:\/\//i, 'http://'));
+    maskedUrl = `mysql://${parsed.username}:${parsed.password ? '***(len ' + parsed.password.length + ')' : '(EMPTY)'}@${parsed.host}${parsed.pathname}`;
+  } catch {}
+  console.log(`Using DATABASE_URL: ${maskedUrl}`);
   pool = mysql.createPool({
     uri: dbUrl,
     database: targetDb,
