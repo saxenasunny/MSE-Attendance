@@ -1082,6 +1082,19 @@ function Admin({ onOpenPasswordModal }) {
   const [f, setF] = useState({ username: '', name: '', password: '', role: 'invigilator' });
   const [m, setM] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [resetModalUser, setResetModalUser] = useState(null);
+  const [resetPass, setResetPass] = useState('');
+  const [resetMsg, setResetMsg] = useState(null);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  const loadUsers = () => {
+    api('/api/admin/users').then(setUsers).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const add = async e => {
     e.preventDefault();
@@ -1091,10 +1104,35 @@ function Admin({ onOpenPasswordModal }) {
       await api('/api/admin/users', { method: 'POST', body: f });
       setM({ ok: true, t: `User "${f.username}" created successfully!` });
       setF({ username: '', name: '', password: '', role: 'invigilator' });
+      loadUsers();
     } catch (e) {
       setM({ ok: false, t: e.message });
     }
     setBusy(false);
+  };
+
+  const handleReset = async e => {
+    e.preventDefault();
+    if (!resetPass || resetPass.length < 6) {
+      return setResetMsg({ ok: false, t: 'New password must be at least 6 characters.' });
+    }
+    setResetBusy(true);
+    setResetMsg(null);
+    try {
+      await api('/api/admin/reset-password', {
+        method: 'POST',
+        body: { userId: resetModalUser.id, newPassword: resetPass }
+      });
+      setResetMsg({ ok: true, t: `Password for "${resetModalUser.username}" updated successfully!` });
+      setTimeout(() => {
+        setResetModalUser(null);
+        setResetPass('');
+        setResetMsg(null);
+      }, 1500);
+    } catch (err) {
+      setResetMsg({ ok: false, t: err.message });
+    }
+    setResetBusy(false);
   };
 
   return (
@@ -1204,6 +1242,115 @@ function Admin({ onOpenPasswordModal }) {
           </div>
         )}
       </div>
+
+      {/* Manage Users Card */}
+      <div className="rounded-2xl bg-slate-900/60 backdrop-blur-xl p-5 border border-white/10 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-white text-base">System Users ({users.length})</h3>
+            <p className="text-xs text-slate-400">View registered users and manage their login passwords.</p>
+          </div>
+          <button
+            onClick={loadUsers}
+            type="button"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-white/10 transition-all"
+          >
+            ↻ Refresh
+          </button>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          {users.map(u => (
+            <div key={u.id} className="p-3 bg-slate-800/60 border border-white/10 rounded-xl flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-white text-sm">{u.username}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                    u.role === 'admin'
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  }`}>
+                    {u.role}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5 truncate">{u.name}</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setResetModalUser(u);
+                  setResetPass('');
+                  setResetMsg(null);
+                }}
+                className="px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 hover:text-white text-xs font-semibold rounded-xl border border-indigo-500/30 transition-all shrink-0 flex items-center gap-1.5"
+              >
+                <Icons.Key />
+                <span>Reset Password</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Admin Reset Password Modal for a user */}
+      {resetModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="w-full max-w-md bg-slate-900 border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <Icons.Key />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base leading-none">Reset Password</h3>
+                  <p className="text-xs text-slate-400 mt-0.5 font-mono">{resetModalUser.username} ({resetModalUser.name})</p>
+                </div>
+              </div>
+              <button onClick={() => setResetModalUser(null)} className="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <form onSubmit={handleReset} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">New Password for {resetModalUser.username}</label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Enter new password (min 6 characters)"
+                  value={resetPass}
+                  onChange={e => setResetPass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {resetMsg && (
+                <div className={`p-3 rounded-xl text-xs font-medium border ${
+                  resetMsg.ok ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+                }`}>
+                  {resetMsg.t}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetModalUser(null)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetBusy}
+                  className="flex-[2] py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 disabled:opacity-50"
+                >
+                  {resetBusy ? 'Updating…' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1268,14 +1415,16 @@ export default function App() {
               </span>
             </div>
 
-            {/* Change Password Button */}
-            <button
-              onClick={() => setPasswordModalOpen(true)}
-              title="Change Password"
-              className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all border border-transparent hover:border-white/10"
-            >
-              <Icons.Key />
-            </button>
+            {/* Change Password Button — Admin Only */}
+            {user.role === 'admin' && (
+              <button
+                onClick={() => setPasswordModalOpen(true)}
+                title="Change Password"
+                className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all border border-transparent hover:border-white/10"
+              >
+                <Icons.Key />
+              </button>
+            )}
 
             {/* Logout Button */}
             <button
@@ -1320,8 +1469,8 @@ export default function App() {
         <p>© {new Date().getFullYear()} <span className="text-slate-300 font-semibold tracking-wide">Cryptic-Automations</span>. All rights reserved.</p>
       </footer>
 
-      {/* Change Password Modal */}
-      {passwordModalOpen && (
+      {/* Change Password Modal — Admin Only */}
+      {passwordModalOpen && user?.role === 'admin' && (
         <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />
       )}
     </div>

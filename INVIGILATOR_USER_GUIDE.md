@@ -27,7 +27,7 @@ Welcome to the **MSE Exam Attendance Portal**. This guide is designed to help yo
 1. Open the portal URL: [MSE Attendance Portal](https://frontend-nine-green-42.vercel.app/)
 2. Enter your assigned **Username** and **Password**.
 3. Tap **Sign In to Portal**.
-   > *Tip: You can change your password anytime by clicking the 🔑 (Key) icon in the top header.*
+   > *Note: For security and central governance, login credentials are managed by the Administrator. If you need a password reset, please contact the Exam Cell / Admin.*
 
 ---
 

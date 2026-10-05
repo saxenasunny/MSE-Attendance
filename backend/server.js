@@ -250,6 +250,10 @@ app.post('/api/admin/lock-all', auth('admin'), h(async (req, res) => {
     res.json({ ok: true, unlocked: true });
   }
 }));
+app.get('/api/admin/users', auth('admin'), h(async (req, res) => {
+  const [rows] = await pool.query('SELECT id, username, name, role FROM users ORDER BY role, username');
+  res.json(rows);
+}));
 app.post('/api/admin/users', auth('admin'), h(async (req, res) => {
   const { username, password, name, role } = req.body;
   if (!username || !password || password.length < 6) return res.status(400).json({ error: 'Username and a password of 6+ characters are required' });
@@ -258,7 +262,20 @@ app.post('/api/admin/users', auth('admin'), h(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/change-password', auth(), h(async (req, res) => {
+// Admin can reset/change password for any user
+app.post('/api/admin/reset-password', auth('admin'), h(async (req, res) => {
+  const { userId, newPassword } = req.body;
+  if (!userId || !newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'User ID and a new password of 6+ characters are required' });
+  }
+  const [[u]] = await pool.query('SELECT id, username FROM users WHERE id=?', [userId]);
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  await pool.query('UPDATE users SET password_hash=? WHERE id=?', [await bcrypt.hash(newPassword, 10), userId]);
+  res.json({ ok: true, message: `Password for "${u.username}" updated successfully!` });
+}));
+
+// Only admin can change password
+app.post('/api/change-password', auth('admin'), h(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters long' });
   const [[u]] = await pool.query('SELECT * FROM users WHERE id=?', [req.user.id]);
