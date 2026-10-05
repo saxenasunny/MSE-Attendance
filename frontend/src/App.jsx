@@ -482,10 +482,10 @@ function Mark({ user }) {
   });
 
   return (
-    <div className="pb-44 text-white">
+    <div className="pb-56 sm:pb-44 text-white">
       {/* Selector Header Card */}
-      <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 p-4 mb-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+      <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 p-3 sm:p-4 mb-4">
+        <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-3">
           {/* Date Selector */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
@@ -544,7 +544,7 @@ function Mark({ user }) {
 
         {/* Room Info, Search Bar & Sort Toggle */}
         {room && (
-          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="mt-3.5 pt-3.5 border-t border-white/10 flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between">
             <div className="relative w-full sm:w-72">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
                 <Icons.Search />
@@ -558,14 +558,14 @@ function Mark({ user }) {
               />
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
               {/* Sort Toggle */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 flex-1 sm:flex-none">
                 <span className="hidden sm:inline">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value)}
-                  className="bg-slate-800/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full sm:w-auto bg-slate-800/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer max-w-[210px] sm:max-w-none truncate"
                 >
                   <option value="roll">🔢 Roll Number (Default)</option>
                   <option value="seating">🪑 Seating Plan Order (Rows/Benches)</option>
@@ -575,8 +575,8 @@ function Mark({ user }) {
                 </select>
               </div>
 
-              <div className="text-xs text-slate-400 text-right font-medium">
-                Showing <span className="font-bold text-white">{sortedStudents.length}</span> of {totalCount} students
+              <div className="text-xs text-slate-400 text-right font-medium shrink-0">
+                <span className="font-bold text-white">{sortedStudents.length}</span>/{totalCount} <span className="hidden sm:inline">students</span>
               </div>
             </div>
           </div>
@@ -680,12 +680,12 @@ function Mark({ user }) {
                   </div>
 
                   {/* Present / Absent Action Buttons */}
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-white/5 sm:border-0 justify-end">
                     <button
                       type="button"
                       disabled={readOnly}
                       onClick={() => setStatus(i, isPresent ? '' : 'Present')}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 ${
+                      className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
                         isPresent
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/40 ring-2 ring-emerald-500/40'
                           : 'bg-slate-800/90 hover:bg-emerald-950/40 text-slate-400 hover:text-emerald-300 border border-white/10'
@@ -698,7 +698,7 @@ function Mark({ user }) {
                       type="button"
                       disabled={readOnly}
                       onClick={() => setStatus(i, isAbsent ? '' : 'Absent')}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 ${
+                      className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
                         isAbsent
                           ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-2 ring-rose-500/40'
                           : 'bg-slate-800/90 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-white/10'
@@ -717,26 +717,26 @@ function Mark({ user }) {
 
       {/* Floating Bottom Action Bar */}
       {room && (
-        <div className="fixed inset-x-0 bottom-0 z-20 p-3 sm:p-4 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none">
-          <div className="max-w-4xl mx-auto bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/15 p-3 sm:p-4 pointer-events-auto space-y-3">
+        <div className="fixed inset-x-0 bottom-0 z-20 p-2.5 sm:p-4 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="max-w-4xl mx-auto bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/15 p-3 sm:p-4 pointer-events-auto space-y-2.5 sm:space-y-3">
             {/* Live Progress Bar & Stats */}
             <div>
               <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-                <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-emerald-400">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <span className="flex items-center gap-1 sm:gap-1.5 text-emerald-400">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
                     <strong>{presentCount}</strong> Present
                   </span>
-                  <span className="flex items-center gap-1.5 text-rose-400">
+                  <span className="flex items-center gap-1 sm:gap-1.5 text-rose-400">
                     <span className="w-2 h-2 rounded-full bg-rose-400 shadow-sm shadow-rose-400" />
                     <strong>{absentCount}</strong> Absent
                   </span>
-                  <span className="flex items-center gap-1.5 text-amber-400">
+                  <span className="flex items-center gap-1 sm:gap-1.5 text-amber-400">
                     <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400" />
                     <strong>{unmarkedCount}</strong> Unmarked
                   </span>
                 </div>
-                <span className="text-slate-400 font-mono">{progressPercent}% marked</span>
+                <span className="text-slate-400 font-mono text-[11px] sm:text-xs shrink-0">{progressPercent}% marked</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex border border-white/5">
                 <div style={{ width: `${(presentCount / (totalCount || 1)) * 100}%` }} className="bg-emerald-500 transition-all duration-300" />
@@ -745,12 +745,12 @@ function Mark({ user }) {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 disabled={readOnly}
                 onClick={() => setAllStatus('Present')}
-                className="flex-1 py-2.5 px-3 bg-emerald-950/40 hover:bg-emerald-900/50 active:scale-95 text-emerald-300 text-xs font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-40"
+                className="flex-1 py-2.5 sm:py-2.5 px-2 sm:px-3 bg-emerald-950/40 hover:bg-emerald-900/50 active:scale-95 text-emerald-300 text-[11px] sm:text-xs font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-40 text-center leading-tight min-h-[42px] sm:min-h-0 flex items-center justify-center select-none"
               >
                 Mark All Present
               </button>
@@ -758,7 +758,7 @@ function Mark({ user }) {
                 type="button"
                 disabled={readOnly}
                 onClick={() => setAllStatus('Absent')}
-                className="flex-1 py-2.5 px-3 bg-rose-950/40 hover:bg-rose-900/50 active:scale-95 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/30 transition-all disabled:opacity-40"
+                className="flex-1 py-2.5 sm:py-2.5 px-2 sm:px-3 bg-rose-950/40 hover:bg-rose-900/50 active:scale-95 text-rose-300 text-[11px] sm:text-xs font-semibold rounded-xl border border-rose-500/30 transition-all disabled:opacity-40 text-center leading-tight min-h-[42px] sm:min-h-0 flex items-center justify-center select-none"
               >
                 Mark All Absent
               </button>
@@ -766,7 +766,7 @@ function Mark({ user }) {
                 type="button"
                 disabled={readOnly || busy}
                 onClick={save}
-                className="flex-[2] py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                className="flex-[1.5] sm:flex-[2] py-2.5 px-3 sm:px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 min-h-[42px] sm:min-h-0 leading-tight select-none"
               >
                 {busy ? (
                   <>
@@ -1404,9 +1404,9 @@ export default function App() {
 
           {/* User Profile & Actions */}
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex flex-col items-end mr-1">
-              <span className="text-xs font-bold text-white leading-tight">{user.name}</span>
-              <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded border ${
+            <div className="flex flex-col items-end mr-1">
+              <span className="text-xs font-bold text-white leading-tight max-w-[100px] sm:max-w-none truncate">{user.name}</span>
+              <span className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded border ${
                 user.role === 'admin'
                   ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
                   : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
