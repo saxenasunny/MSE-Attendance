@@ -107,21 +107,38 @@ app.get('/api/dates', auth(), h(async (req, res) => {
     const today = req.query.today || new Date().toISOString().slice(0, 10);
     dates = dates.filter(d => d >= today);
   }
+  // Cache for 30 seconds — dates rarely change during an exam session
+  res.set('Cache-Control', 'private, max-age=30');
   res.json(dates);
 }));
-app.get('/api/sessions', auth(), h(async (q, r) => r.json((await pool.query('SELECT DISTINCT session s FROM exam_seating WHERE exam_date=? ORDER BY s', [q.query.date]))[0].map(x => x.s))));
+app.get('/api/sessions', auth(), h(async (q, r) => {
+  // Cache for 30 seconds — sessions are stable once seating is uploaded
+  r.set('Cache-Control', 'private, max-age=30');
+  r.json((await pool.query('SELECT DISTINCT session s FROM exam_seating WHERE exam_date=? ORDER BY s', [q.query.date]))[0].map(x => x.s));
+}));
 app.get('/api/rooms', auth(), h(async (q, r) => {
   const [rows] = await pool.query(`SELECT s.room_no room, COUNT(*) total, COUNT(a.enrollment_no) marked, MAX(l.room_no IS NOT NULL) locked
     FROM exam_seating s ${JA} LEFT JOIN room_locks l ON l.exam_date=s.exam_date AND l.session=s.session AND l.room_no=s.room_no
     WHERE s.exam_date=? AND s.session=? GROUP BY s.room_no ORDER BY s.room_no`, [q.query.date, q.query.session]);
+  // Cache for 5 seconds — marked count updates frequently, but a tiny cache avoids rapid duplicate calls
+  r.set('Cache-Control', 'private, max-age=5');
   r.json(rows);
 }));
 app.get('/api/roster', auth(), h(async (q, r) => {
   const { date, session, room } = q.query;
-  const [students] = await pool.query(`SELECT s.enrollment_no,s.name,s.program,s.section,s.subject_code,s.subject_name,COALESCE(s.seat_order, 0) seat_order,a.status FROM exam_seating s ${JA}
-    WHERE s.exam_date=? AND s.session=? AND s.room_no=? ORDER BY s.enrollment_no`, [date, session, room]);
-  const [lk] = await pool.query('SELECT 1 FROM room_locks WHERE exam_date=? AND session=? AND room_no=?', [date, session, room]);
-  r.json({ students, locked: lk.length > 0 });
+  // Single query: fetch students + lock status together to avoid two round-trips
+  const [students] = await pool.query(
+    `SELECT s.enrollment_no, s.name, s.program, s.section, s.subject_code, s.subject_name,
+      COALESCE(s.seat_order, 0) seat_order, a.status,
+      (SELECT COUNT(*) FROM room_locks rl WHERE rl.exam_date=s.exam_date AND rl.session=s.session AND rl.room_no=s.room_no) AS is_locked
+    FROM exam_seating s ${JA}
+    WHERE s.exam_date=? AND s.session=? AND s.room_no=? ORDER BY s.enrollment_no`,
+    [date, session, room]
+  );
+  const locked = students.length > 0 && students[0].is_locked > 0;
+  // Strip is_locked field from each student object before returning
+  const clean = students.map(({ is_locked, ...rest }) => rest);
+  r.json({ students: clean, locked });
 }));
 // Upsert on the (date, session, enrollment, subject) key: no duplicates, re-save simply updates.
 app.post('/api/attendance', auth(), h(async (req, res) => {

@@ -1,4 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+// Debounce hook — delays updating a value until the user stops typing
+function useDebounce(value, delay = 200) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 let token = localStorage.getItem('token');
@@ -221,6 +231,11 @@ function Login({ onDone }) {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Pre-warm backend on Login page load so cold-start happens while user types credentials
+  useEffect(() => {
+    fetch(API + '/health', { method: 'GET' }).catch(() => {});
+  }, []);
+
   const go = async e => {
     e.preventDefault();
     setErr('');
@@ -348,24 +363,19 @@ function Mark({ user }) {
   const [list, setList] = useState([]);
   const [locked, setLocked] = useState(false);
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 200); // delay search filter by 200ms
   const [sortBy, setSortBy] = useState('roll');
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const [rosterLoading, setRosterLoading] = useState(false);
+
   useEffect(() => {
     const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${y}-${m}-${day}`;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const query = user?.role !== 'admin' ? `?today=${todayStr}` : '?all=true';
-    api('/api/dates' + query).then(dList => {
-      if (user?.role !== 'admin') {
-        setDates(dList.filter(d => d >= todayStr));
-      } else {
-        setDates(dList);
-      }
-    }).catch(e => setMsg({ t: e.message }));
+    // Backend already filters dates server-side — no need for client-side re-filter
+    api('/api/dates' + query).then(setDates).catch(e => setMsg({ t: e.message }));
   }, [user?.role]);
 
   useEffect(() => {
@@ -374,22 +384,26 @@ function Mark({ user }) {
     if (date) api('/api/sessions?date=' + date).then(setSessions);
   }, [date]);
 
-  const loadRooms = () => {
+  const loadRooms = useCallback(() => {
     if (session) api(`/api/rooms?date=${date}&session=${session}`).then(setRooms);
-  };
+  }, [date, session]);
 
   useEffect(() => {
     setRoom('');
     setRooms([]);
     loadRooms();
-  }, [session]);
+  }, [loadRooms]);
 
-  const loadRoster = () => {
-    api(`/api/roster?date=${date}&session=${session}&room=${room}`).then(r => {
-      setList(r.students);
-      setLocked(r.locked);
-    });
-  };
+  const loadRoster = useCallback(() => {
+    if (!date || !session || !room) return;
+    setRosterLoading(true);
+    api(`/api/roster?date=${date}&session=${session}&room=${room}`)
+      .then(r => {
+        setList(r.students);
+        setLocked(r.locked);
+      })
+      .finally(() => setRosterLoading(false));
+  }, [date, session, room]);
 
   useEffect(() => {
     setList([]);
@@ -439,7 +453,7 @@ function Mark({ user }) {
 
   const filteredStudents = list
     .map((s, i) => [s, i])
-    .filter(([s]) => !q || (s.enrollment_no + ' ' + s.name + ' ' + s.subject_code).toLowerCase().includes(q.toLowerCase()));
+    .filter(([s]) => !debouncedQ || (s.enrollment_no + ' ' + s.name + ' ' + s.subject_code).toLowerCase().includes(debouncedQ.toLowerCase()));
 
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     const sA = a[0], sB = b[0];
@@ -599,7 +613,24 @@ function Mark({ user }) {
       {/* Students List */}
       {room && (
         <div className="space-y-2">
-          {sortedStudents.length === 0 ? (
+          {rosterLoading ? (
+            // Loading skeleton — gives immediate visual feedback while roster fetches
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-white/10 bg-slate-900/50 animate-pulse">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-3 bg-slate-800 rounded w-32" />
+                    <div className="h-2.5 bg-slate-800/70 rounded w-48" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-20 h-8 bg-slate-800 rounded-xl" />
+                  <div className="w-20 h-8 bg-slate-800 rounded-xl" />
+                </div>
+              </div>
+            ))
+          ) : sortedStudents.length === 0 ? (
             <div className="text-center py-12 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 text-slate-400 text-sm">
               No students found matching your criteria.
             </div>
@@ -1182,6 +1213,15 @@ export default function App() {
   const [user, setUser] = useState(() => (token ? JSON.parse(localStorage.getItem('user') || 'null') : null));
   const [tab, setTab] = useState('mark');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  // Keep the Render server warm — silently ping /health every 4 minutes
+  // This prevents the free-tier 10-30 second cold-start delay
+  useEffect(() => {
+    const ping = () => fetch(API + '/health', { method: 'GET' }).catch(() => {});
+    ping(); // immediate ping on mount
+    const id = setInterval(ping, 4 * 60 * 1000); // every 4 minutes
+    return () => clearInterval(id);
+  }, []);
 
   if (!user) return <Login onDone={setUser} />;
 
