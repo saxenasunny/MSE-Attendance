@@ -100,7 +100,15 @@ app.post('/api/login', h(async (req, res) => {
 }));
 
 // ---- Invigilator flow: date -> session -> room -> roster
-app.get('/api/dates', auth(), h(async (q, r) => r.json((await pool.query('SELECT DISTINCT exam_date d FROM exam_seating ORDER BY d'))[0].map(x => x.d))));
+app.get('/api/dates', auth(), h(async (req, res) => {
+  const [rows] = await pool.query('SELECT DISTINCT exam_date d FROM exam_seating ORDER BY d');
+  let dates = rows.map(x => x.d);
+  if (req.user.role !== 'admin' && req.query.all !== 'true') {
+    const today = req.query.today || new Date().toISOString().slice(0, 10);
+    dates = dates.filter(d => d >= today);
+  }
+  res.json(dates);
+}));
 app.get('/api/sessions', auth(), h(async (q, r) => r.json((await pool.query('SELECT DISTINCT session s FROM exam_seating WHERE exam_date=? ORDER BY s', [q.query.date]))[0].map(x => x.s))));
 app.get('/api/rooms', auth(), h(async (q, r) => {
   const [rows] = await pool.query(`SELECT s.room_no room, COUNT(*) total, COUNT(a.enrollment_no) marked, MAX(l.room_no IS NOT NULL) locked

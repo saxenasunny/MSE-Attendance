@@ -353,8 +353,20 @@ function Mark({ user }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api('/api/dates').then(setDates).catch(e => setMsg({ t: e.message }));
-  }, []);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${day}`;
+    const query = user?.role !== 'admin' ? `?today=${todayStr}` : '?all=true';
+    api('/api/dates' + query).then(dList => {
+      if (user?.role !== 'admin') {
+        setDates(dList.filter(d => d >= todayStr));
+      } else {
+        setDates(dList);
+      }
+    }).catch(e => setMsg({ t: e.message }));
+  }, [user?.role]);
 
   useEffect(() => {
     setSession('');
@@ -753,7 +765,7 @@ function Report() {
   const [open, setOpen] = useState(null);
 
   useEffect(() => {
-    api('/api/dates').then(x => {
+    api('/api/dates?all=true').then(x => {
       setDates(x);
       if (x.length) setDate(x[0]);
     });
