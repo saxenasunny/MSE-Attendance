@@ -197,6 +197,34 @@ app.post('/api/admin/lock', auth('admin'), h(async (req, res) => {
   await pool.query(locked ? 'INSERT IGNORE INTO room_locks (exam_date,session,room_no) VALUES (?,?,?)' : 'DELETE FROM room_locks WHERE exam_date=? AND session=? AND room_no=?', [date, session, room]);
   res.json({ ok: true });
 }));
+
+app.post('/api/admin/lock-all', auth('admin'), h(async (req, res) => {
+  const { date, session, locked } = req.body;
+  if (!date) return res.status(400).json({ error: 'Date is required' });
+  if (locked) {
+    let sql = 'SELECT DISTINCT exam_date, session, room_no FROM exam_seating WHERE exam_date=?';
+    const params = [date];
+    if (session) {
+      sql += ' AND session=?';
+      params.push(session);
+    }
+    const [rooms] = await pool.query(sql, params);
+    if (rooms.length) {
+      const rows = rooms.map(r => [r.exam_date, r.session, r.room_no]);
+      await pool.query('INSERT IGNORE INTO room_locks (exam_date, session, room_no) VALUES ?', [rows]);
+    }
+    res.json({ ok: true, count: rooms.length, locked: true });
+  } else {
+    let sql = 'DELETE FROM room_locks WHERE exam_date=?';
+    const params = [date];
+    if (session) {
+      sql += ' AND session=?';
+      params.push(session);
+    }
+    await pool.query(sql, params);
+    res.json({ ok: true, unlocked: true });
+  }
+}));
 app.post('/api/admin/users', auth('admin'), h(async (req, res) => {
   const { username, password, name, role } = req.body;
   if (!username || !password || password.length < 6) return res.status(400).json({ error: 'Username and a password of 6+ characters are required' });

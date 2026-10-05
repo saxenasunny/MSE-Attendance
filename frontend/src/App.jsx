@@ -776,12 +776,31 @@ function Report() {
     a.click();
   };
 
+  const [lockingAll, setLockingAll] = useState(false);
+
   const toggleLock = async x => {
     await api('/api/admin/lock', {
       method: 'POST',
       body: { date, session: x.session, room: x.room, locked: !x.locked }
     });
     load();
+  };
+
+  const lockAllRooms = async (locked) => {
+    if (!d || !d.summary.length) return;
+    const actionText = locked ? 'lock' : 'unlock';
+    if (!confirm(`Are you sure you want to ${actionText} all ${d.summary.length} room(s) for ${fmt(date)}?`)) return;
+    setLockingAll(true);
+    try {
+      await api('/api/admin/lock-all', {
+        method: 'POST',
+        body: { date, locked }
+      });
+      load();
+    } catch (e) {
+      alert(e.message);
+    }
+    setLockingAll(false);
   };
 
   const tot = k => (d ? d.summary.reduce((a, x) => a + x[k], 0) : 0);
@@ -838,7 +857,31 @@ function Report() {
 
           {/* Rooms Grid */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Room Wise Status</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Room Wise Status</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={lockingAll || d.summary.length === 0 || d.summary.every(x => x.locked)}
+                  onClick={() => lockAllRooms(true)}
+                  className="px-3.5 py-1.5 bg-amber-950/50 hover:bg-amber-900/70 active:scale-95 text-amber-300 text-xs font-semibold rounded-xl border border-amber-500/40 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-40"
+                  title="Lock all rooms for this date with one click"
+                >
+                  <span>🔒</span>
+                  <span>{lockingAll ? 'Processing…' : 'Lock All Rooms'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={lockingAll || d.summary.length === 0 || d.summary.every(x => !x.locked)}
+                  onClick={() => lockAllRooms(false)}
+                  className="px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 active:scale-95 text-slate-300 text-xs font-semibold rounded-xl border border-white/10 transition-all flex items-center gap-1.5 disabled:opacity-40"
+                  title="Unlock all rooms for this date"
+                >
+                  <span>🔓</span>
+                  <span>Unlock All</span>
+                </button>
+              </div>
+            </div>
             {d.summary.map(x => {
               const key = x.session + x.room;
               const absentees = d.rows.filter(r => r.Session === x.session && r['Room No'] === x.room);
