@@ -422,9 +422,10 @@ function Mark({ user }) {
   const readOnly = locked && user.role !== 'admin';
   const presentCount = list.filter(x => x.status === 'Present').length;
   const absentCount = list.filter(x => x.status === 'Absent').length;
+  const ufmCount = list.filter(x => x.status === 'UFM').length;
   const unmarkedCount = list.filter(x => !x.status).length;
   const totalCount = list.length;
-  const progressPercent = totalCount ? Math.round(((presentCount + absentCount) / totalCount) * 100) : 0;
+  const progressPercent = totalCount ? Math.round(((presentCount + absentCount + ufmCount) / totalCount) * 100) : 0;
 
   const save = async () => {
     if (unmarkedCount && !confirm(`${unmarkedCount} student(s) are still unmarked and will not be saved. Save anyway?`)) return;
@@ -473,7 +474,7 @@ function Mark({ user }) {
       return cmp !== 0 ? cmp : (sA.enrollment_no || '').localeCompare(sB.enrollment_no || '', undefined, { numeric: true });
     }
     if (sortBy === 'unmarked') {
-      const rank = s => (!s.status ? 0 : s.status === 'Absent' ? 1 : 2);
+      const rank = s => (!s.status ? 0 : s.status === 'Absent' ? 1 : s.status === 'UFM' ? 2 : 3);
       const diff = rank(sA) - rank(sB);
       return diff !== 0 ? diff : (sA.enrollment_no || '').localeCompare(sB.enrollment_no || '', undefined, { numeric: true });
     }
@@ -638,6 +639,7 @@ function Mark({ user }) {
             sortedStudents.map(([s, i], displayIndex) => {
               const isPresent = s.status === 'Present';
               const isAbsent = s.status === 'Absent';
+              const isUFM = s.status === 'UFM';
               return (
                 <div
                   key={s.enrollment_no + '|' + s.subject_code}
@@ -646,12 +648,17 @@ function Mark({ user }) {
                       ? 'border-emerald-500/40 bg-emerald-950/20 shadow-md shadow-emerald-950/40'
                       : isAbsent
                       ? 'border-rose-500/40 bg-rose-950/20 shadow-md shadow-rose-950/40'
+                      : isUFM
+                      ? 'border-orange-500/50 bg-orange-950/25 shadow-md shadow-orange-950/40'
                       : 'border-white/10 bg-slate-900/50 hover:border-white/20'
                   }`}
                 >
                   <div className="min-w-0 flex items-start gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                      isPresent ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : isAbsent ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
+                      isPresent ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : isAbsent ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : isUFM ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                      : 'bg-slate-800 text-slate-400'
                     }`}>
                       {displayIndex + 1}
                     </div>
@@ -671,6 +678,11 @@ function Mark({ user }) {
                             Seat #{s.seat_order}
                           </span>
                         )}
+                        {isUFM && (
+                          <span className="px-2 py-0.5 bg-orange-500/20 text-orange-300 rounded-md text-[11px] font-bold border border-orange-500/40 uppercase tracking-wide">
+                            ⚠ UFM
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-300 font-medium truncate mt-0.5">{s.name}</div>
                       {s.subject_name && (
@@ -679,13 +691,13 @@ function Mark({ user }) {
                     </div>
                   </div>
 
-                  {/* Present / Absent Action Buttons */}
+                  {/* Present / Absent / UFM Action Buttons */}
                   <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-white/5 sm:border-0 justify-end">
                     <button
                       type="button"
                       disabled={readOnly}
                       onClick={() => setStatus(i, isPresent ? '' : 'Present')}
-                      className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
+                      className={`flex-1 sm:flex-none justify-center px-3 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
                         isPresent
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/40 ring-2 ring-emerald-500/40'
                           : 'bg-slate-800/90 hover:bg-emerald-950/40 text-slate-400 hover:text-emerald-300 border border-white/10'
@@ -698,7 +710,7 @@ function Mark({ user }) {
                       type="button"
                       disabled={readOnly}
                       onClick={() => setStatus(i, isAbsent ? '' : 'Absent')}
-                      className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
+                      className={`flex-1 sm:flex-none justify-center px-3 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
                         isAbsent
                           ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-2 ring-rose-500/40'
                           : 'bg-slate-800/90 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-white/10'
@@ -706,6 +718,19 @@ function Mark({ user }) {
                     >
                       <span>✕</span>
                       <span>Absent</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => setStatus(i, isUFM ? '' : 'UFM')}
+                      className={`flex-1 sm:flex-none justify-center px-3 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-40 select-none ${
+                        isUFM
+                          ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/40 ring-2 ring-orange-500/40'
+                          : 'bg-slate-800/90 hover:bg-orange-950/40 text-slate-400 hover:text-orange-300 border border-white/10'
+                      }`}
+                    >
+                      <span>⚠</span>
+                      <span>UFM</span>
                     </button>
                   </div>
                 </div>
@@ -731,6 +756,12 @@ function Mark({ user }) {
                     <span className="w-2 h-2 rounded-full bg-rose-400 shadow-sm shadow-rose-400" />
                     <strong>{absentCount}</strong> Absent
                   </span>
+                  {ufmCount > 0 && (
+                    <span className="flex items-center gap-1 sm:gap-1.5 text-orange-400">
+                      <span className="w-2 h-2 rounded-full bg-orange-400 shadow-sm shadow-orange-400" />
+                      <strong>{ufmCount}</strong> UFM
+                    </span>
+                  )}
                   <span className="flex items-center gap-1 sm:gap-1.5 text-amber-400">
                     <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-400" />
                     <strong>{unmarkedCount}</strong> Unmarked
@@ -741,6 +772,7 @@ function Mark({ user }) {
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex border border-white/5">
                 <div style={{ width: `${(presentCount / (totalCount || 1)) * 100}%` }} className="bg-emerald-500 transition-all duration-300" />
                 <div style={{ width: `${(absentCount / (totalCount || 1)) * 100}%` }} className="bg-rose-500 transition-all duration-300" />
+                <div style={{ width: `${(ufmCount / (totalCount || 1)) * 100}%` }} className="bg-orange-500 transition-all duration-300" />
               </div>
             </div>
 
@@ -884,11 +916,12 @@ function Report() {
       {d && (
         <>
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Total Seated', key: 'total', color: 'text-white', bg: 'bg-slate-900/60 border-indigo-500/30' },
               { label: 'Present', key: 'present', color: 'text-emerald-400', bg: 'bg-emerald-950/30 border-emerald-500/30' },
               { label: 'Absent', key: 'absent', color: 'text-rose-400', bg: 'bg-rose-950/30 border-rose-500/30' },
+              { label: 'UFM', key: 'ufm', color: 'text-orange-400', bg: 'bg-orange-950/30 border-orange-500/30' },
               { label: 'Unmarked', key: 'notMarked', color: 'text-amber-400', bg: 'bg-amber-950/30 border-amber-500/30' }
             ].map(item => (
               <div key={item.key} className={`rounded-2xl border backdrop-blur-xl p-4 shadow-xl ${item.bg}`}>
@@ -948,9 +981,10 @@ function Report() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                      <div className="text-xs text-slate-400 mt-1 flex items-center gap-3 flex-wrap">
                         <span className="text-emerald-400 font-semibold">{x.present}P</span>
                         <span className="text-rose-400 font-semibold">{x.absent}A</span>
+                        {x.ufm > 0 && <span className="text-orange-400 font-semibold">{x.ufm} UFM</span>}
                         <span className="text-amber-400 font-semibold">{x.notMarked} Unmarked</span>
                         <span>/ Total {x.total}</span>
                       </div>
@@ -991,8 +1025,12 @@ function Report() {
                                 <span className="font-mono font-bold text-white">{r['Enrollment No']}</span>
                                 <div className="text-[11px] text-slate-400 truncate">{r.Name} · {r['Subject Code']}</div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                r['Attendance Status'] === 'Absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                                r['Attendance Status'] === 'Absent'
+                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                  : r['Attendance Status'] === 'UFM'
+                                  ? 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                               }`}>
                                 {r['Attendance Status']}
                               </span>

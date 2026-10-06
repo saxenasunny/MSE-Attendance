@@ -56,10 +56,10 @@ Next to the search bar, tap the **Sort** dropdown to match your invigilation sty
 ### Step 4: Mark Attendance
 For each student, choose one of the following methods:
 
-- **Individual Marking**: Tap **✓ Present** (green) or **✕ Absent** (red) next to the student's name. Tapping an active button toggles it back to unmarked if needed.
+- **Individual Marking**: Tap **✓ Present** (green), **✕ Absent** (red), or **⚠ UFM** (orange) next to the student's name. Tapping an active button toggles it back to unmarked if needed.
 - **Bulk Strategy (Quickest Method)**:
   1. Tap **Mark All Present** on the bottom floating bar.
-  2. Walk down rows and tap **✕ Absent** only for empty seats.
+  2. Walk down rows and tap **✕ Absent** for empty seats, or **⚠ UFM** for any Unfair Means candidate.
   3. This takes under **60 seconds** for an entire hall!
 
 ---

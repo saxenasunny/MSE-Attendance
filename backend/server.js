@@ -147,7 +147,7 @@ app.post('/api/attendance', auth(), h(async (req, res) => {
   if (lk.length && req.user.role !== 'admin') return res.status(423).json({ error: 'This room is locked. Ask an admin to unlock it.' });
   const [seats] = await pool.query('SELECT enrollment_no,subject_code FROM exam_seating WHERE exam_date=? AND session=? AND room_no=?', [date, session, room]);
   const ok = new Set(seats.map(s => s.enrollment_no + '|' + s.subject_code));
-  const rows = (records || []).filter(x => ok.has(x.enrollment_no + '|' + x.subject_code) && ['Present', 'Absent'].includes(x.status))
+  const rows = (records || []).filter(x => ok.has(x.enrollment_no + '|' + x.subject_code) && ['Present', 'Absent', 'UFM'].includes(x.status))
     .map(x => [date, session, room, x.enrollment_no, x.subject_code, x.status, req.user.id]);
   if (rows.length) await pool.query('INSERT INTO attendance (exam_date,session,room_no,enrollment_no,subject_code,status,marked_by) VALUES ? ON DUPLICATE KEY UPDATE status=VALUES(status),room_no=VALUES(room_no),marked_by=VALUES(marked_by)', [rows]);
   res.json({ saved: rows.length });
@@ -163,8 +163,12 @@ app.get('/api/report', auth('admin'), h(async (q, r) => {
   const lk = new Set(locks.map(l => l.session + '|' + l.room_no)), m = {};
   for (const x of rows) {
     const k = x.Session + '|' + x['Room No'];
-    const e = m[k] ||= { session: x.Session, room: x['Room No'], total: 0, present: 0, absent: 0, notMarked: 0, locked: lk.has(k) };
-    e.total++; x['Attendance Status'] === 'Present' ? e.present++ : x['Attendance Status'] === 'Absent' ? e.absent++ : e.notMarked++;
+    const e = m[k] ||= { session: x.Session, room: x['Room No'], total: 0, present: 0, absent: 0, ufm: 0, notMarked: 0, locked: lk.has(k) };
+    e.total++;
+    if (x['Attendance Status'] === 'Present') e.present++;
+    else if (x['Attendance Status'] === 'Absent') e.absent++;
+    else if (x['Attendance Status'] === 'UFM') e.ufm++;
+    else e.notMarked++;
   }
   r.json({ summary: Object.values(m), rows: rows.filter(x => x['Attendance Status'] !== 'Present') });
 }));
@@ -304,6 +308,8 @@ app.post('/api/change-password', auth('admin'), h(async (req, res) => {
 
   for (const st of fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8').split(';').map(s => s.trim()).filter(Boolean)) await pool.query(st);
   try { await pool.query('ALTER TABLE exam_seating ADD COLUMN seat_order INT DEFAULT 0'); } catch {}
+  // Migrate existing attendance table to support UFM status value
+  try { await pool.query("ALTER TABLE attendance MODIFY COLUMN status ENUM('Present','Absent','UFM') NOT NULL"); } catch {}
   const [[c]] = await pool.query('SELECT COUNT(*) n FROM users');
   if (!c.n) {
     await pool.query('INSERT INTO users (username,password_hash,name,role) VALUES (?,?,?,?)', [process.env.ADMIN_USERNAME || 'admin', await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10), 'Administrator', 'admin']);
