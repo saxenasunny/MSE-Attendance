@@ -8,13 +8,15 @@ function toDate(v) {
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[0] : null;
 }
 const ALIAS = { enrollmentno: 'enrollment_no', enrollment: 'enrollment_no', rollno: 'enrollment_no', name: 'name', studentname: 'name',
-  program: 'program', coursename: 'program', section: 'section', subjectcode: 'subject_code', subjectname: 'subject_name',
+  program: 'program', coursename: 'program', section: 'section', batchyear: 'batch_year', batch: 'batch_year', batchno: 'batch_year',
+  batchyr: 'batch_year', admyear: 'batch_year', admissionyear: 'batch_year', year: 'batch_year',
+  subjectcode: 'subject_code', subjectname: 'subject_name',
   examdate: 'exam_date', date: 'exam_date', session: 'session', roomno: 'room_no', room: 'room_no' };
 function readFlat(ws) {
   return XLSX.utils.sheet_to_json(ws, { defval: '' }).map(r => {
     const o = {};
     for (const k in r) { const a = ALIAS[String(k).toLowerCase().replace(/[^a-z]/g, '')]; if (a) o[a] = r[k]; }
-    for (const k of ['enrollment_no', 'name', 'program', 'section', 'subject_code', 'subject_name', 'room_no']) o[k] = String(o[k] ?? '').trim();
+    for (const k of ['enrollment_no', 'name', 'program', 'section', 'batch_year', 'subject_code', 'subject_name', 'room_no']) o[k] = String(o[k] ?? '').trim();
     o.exam_date = toDate(o.exam_date); o.session = cap(o.session); return o;
   }).filter(o => o.enrollment_no && o.exam_date && o.session && o.subject_code);
 }

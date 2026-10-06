@@ -154,9 +154,11 @@ app.post('/api/attendance', auth(), h(async (req, res) => {
 }));
 
 // ---- Date-wise report + export
-const reportRows = async d => (await pool.query(`SELECT s.enrollment_no 'Enrollment No',s.name 'Name',s.program 'Program',s.section 'Section',s.subject_code 'Subject Code',
-  s.subject_name 'Subject Name',DATE_FORMAT(s.exam_date,'%d-%m-%Y') 'Exam Date',s.session 'Session',s.room_no 'Room No',COALESCE(a.status,'Not Marked') 'Attendance Status'
-  FROM exam_seating s ${JA} WHERE s.exam_date=? ORDER BY s.session,s.room_no,s.enrollment_no`, [d]))[0];
+const reportRows = async d => (await pool.query(`SELECT s.enrollment_no 'Enrollment No',s.name 'Name',s.program 'Program',s.section 'Section',
+  COALESCE(NULLIF(s.batch_year,''),NULLIF(sm.batch_year,''),'') 'Batch Year',
+  s.subject_code 'Subject Code',s.subject_name 'Subject Name',DATE_FORMAT(s.exam_date,'%d-%m-%Y') 'Exam Date',s.session 'Session',s.room_no 'Room No',COALESCE(a.status,'Not Marked') 'Attendance Status'
+  FROM exam_seating s ${JA} LEFT JOIN students_master sm ON sm.enrollment_no=s.enrollment_no AND sm.subject_code=s.subject_code AND sm.exam_date=s.exam_date AND sm.session=s.session
+  WHERE s.exam_date=? ORDER BY s.session,s.room_no,s.enrollment_no`, [d]))[0];
 app.get('/api/report', auth('admin'), h(async (q, r) => {
   const rows = await reportRows(q.query.date);
   const [locks] = await pool.query('SELECT session,room_no FROM room_locks WHERE exam_date=?', [q.query.date]);
@@ -189,8 +191,8 @@ app.post('/api/admin/import/students', auth('admin'), upload.single('file'), h(a
   const rows = parseStudents(req.file.buffer);
   if (!rows.length) return res.status(400).json({ error: 'No valid rows. Needed columns: Enrollment/Roll No, Name, Program, Section, Subject Code, Subject Name, Exam Date, Session.' });
   const conn = await pool.getConnection();
-  try { await conn.beginTransaction(); await bulk(conn, 'INSERT INTO students_master (enrollment_no,name,program,section,subject_code,subject_name,exam_date,session) VALUES ? ON DUPLICATE KEY UPDATE name=VALUES(name),program=VALUES(program),section=VALUES(section),subject_name=VALUES(subject_name)',
-    rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.subject_code, r.subject_name, r.exam_date, r.session])); await conn.commit(); }
+  try { await conn.beginTransaction(); await bulk(conn, 'INSERT INTO students_master (enrollment_no,name,program,section,batch_year,subject_code,subject_name,exam_date,session) VALUES ? ON DUPLICATE KEY UPDATE name=VALUES(name),program=VALUES(program),section=VALUES(section),batch_year=VALUES(batch_year),subject_name=VALUES(subject_name)',
+    rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.batch_year || '', r.subject_code, r.subject_name, r.exam_date, r.session])); await conn.commit(); }
   catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
   res.json({ imported: rows.length });
 }));
@@ -215,8 +217,8 @@ app.post('/api/admin/import/seating', auth('admin'), upload.single('file'), h(as
       roomCounters[k] = (roomCounters[k] || 0) + 1;
       r.seat_order = roomCounters[k];
     }
-    await bulk(conn, 'INSERT INTO exam_seating (enrollment_no,name,program,section,subject_code,subject_name,exam_date,session,room_no,seat_order) VALUES ? ON DUPLICATE KEY UPDATE room_no=VALUES(room_no),seat_order=VALUES(seat_order)',
-      rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.subject_code, r.subject_name, r.exam_date, r.session, r.room_no, r.seat_order || 0]));
+    await bulk(conn, 'INSERT INTO exam_seating (enrollment_no,name,program,section,batch_year,subject_code,subject_name,exam_date,session,room_no,seat_order) VALUES ? ON DUPLICATE KEY UPDATE room_no=VALUES(room_no),seat_order=VALUES(seat_order),batch_year=VALUES(batch_year)',
+      rows.map(r => [r.enrollment_no, r.name, r.program, r.section, r.batch_year || '', r.subject_code, r.subject_name, r.exam_date, r.session, r.room_no, r.seat_order || 0]));
     await conn.commit();
   } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
   res.json({ seated: rows.length, sessions: pairs, unmatched: unmatched.length, unmatchedSample: unmatched.slice(0, 20) });
@@ -310,6 +312,9 @@ app.post('/api/change-password', auth('admin'), h(async (req, res) => {
   try { await pool.query('ALTER TABLE exam_seating ADD COLUMN seat_order INT DEFAULT 0'); } catch {}
   // Migrate existing attendance table to support UFM status value
   try { await pool.query("ALTER TABLE attendance MODIFY COLUMN status ENUM('Present','Absent','UFM') NOT NULL"); } catch {}
+  // Migrate existing tables to support batch_year column
+  try { await pool.query('ALTER TABLE students_master ADD COLUMN batch_year VARCHAR(50)'); } catch {}
+  try { await pool.query('ALTER TABLE exam_seating ADD COLUMN batch_year VARCHAR(50)'); } catch {}
   const [[c]] = await pool.query('SELECT COUNT(*) n FROM users');
   if (!c.n) {
     await pool.query('INSERT INTO users (username,password_hash,name,role) VALUES (?,?,?,?)', [process.env.ADMIN_USERNAME || 'admin', await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10), 'Administrator', 'admin']);

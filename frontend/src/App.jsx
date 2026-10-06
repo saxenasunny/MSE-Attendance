@@ -1023,7 +1023,7 @@ function Report() {
                             <div key={r['Enrollment No'] + r['Subject Code']} className="p-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs flex items-center justify-between">
                               <div>
                                 <span className="font-mono font-bold text-white">{r['Enrollment No']}</span>
-                                <div className="text-[11px] text-slate-400 truncate">{r.Name} · {r['Subject Code']}</div>
+                                <div className="text-[11px] text-slate-400 truncate">{r.Name} · {r['Subject Code']}{r['Batch Year'] ? ` · Batch: ${r['Batch Year']}` : ''}</div>
                               </div>
                               <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
                                 r['Attendance Status'] === 'Absent'
@@ -1199,7 +1199,7 @@ function Admin({ onOpenPasswordModal }) {
           step="1"
           label="Student Master Data"
           path="/api/admin/import/students"
-          hint="Upload Std_Data sheet with columns: Roll_No / Enrollment No, Name, Program / Course_Name, Section, Subject_Code, Subject_Name, Exam_Date, Session."
+          hint="Upload Std_Data sheet with columns: Roll_No / Enrollment No, Name, Program / Course_Name, Section, Batch Year, Subject_Code, Subject_Name, Exam_Date, Session."
         />
         <UploadCard
           step="2"
